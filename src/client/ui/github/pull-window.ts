@@ -13,6 +13,7 @@ import { avatar, commentCard, errorBox, nodes, REVIEW_BADGE, spinnerRow, stateOf
 import { FILES_KEY, mergePref, pref, savePref, TAB_KEY } from './prefs';
 import { fixAndMergePrompt, fixConflictsPrompt, pullContext, pullVars, reviewPrompt, type BoardActions } from './prompts';
 import { buildTree, looksGenerated, parseDiff, renderFileDiff, renderThread, repliesOf, Reviewed, STATUS_WORD, treeOrder, type DiffFile, type TreeDir } from './pulldiff';
+import { openLinkText } from './studio';
 
 // The window behind a card on the PR board. A PR opens on its conversation (description, comments,
 // reviews, line comments, checks) with a Files tab for the diff, where you tick files off as
@@ -63,7 +64,7 @@ export function openPull(first: GhPull, net: Net, actions: BoardActions) {
     meta,
     h('nav.gh-tabs', { role: 'tablist' }, tabConv, tabFiles),
     h('div.gh-body', {}, conv, filesPane),
-    h('footer', {}, h('a.grow', { href: it.url, target: '_blank', rel: 'noopener noreferrer' }, 'Open on GitHub ↗'), footBtns),
+    h('footer', {}, h('a.grow', { href: it.url, target: '_blank', rel: 'noopener noreferrer' }, openLinkText(it.url)), footBtns),
   );
 
   const handToWorker = () => {

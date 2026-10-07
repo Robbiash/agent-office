@@ -21,3 +21,8 @@ export function studioAskContext(number: number, title: string, file: string): s
 export function studioReviewPrompt(number: number, title: string, file: string): string {
   return `Review Vaelmoor Studio task #${number}: "${title}".\n\nRead the task record (${file}) and its source notes, then check each criterion against what is actually built and the evidence. Say which criteria look met, which don't, and what Robin should look at when he tests it.\n\n${RULES}`;
 }
+
+/** The link under a card's window: to GitHub, or to the task note in Obsidian. */
+export function openLinkText(url: string): string {
+  return studioFile(url) ? 'Open in Obsidian ↗' : 'Open on GitHub ↗';
+}

@@ -64,7 +64,57 @@ test("the board's GitHub actions leave Studio alone", async () => {
   const s = studio([task('a', 'awaiting_robin')]);
   await s.boards.refresh();
   assert.match((await s.boards.merge(1, 'squash', false, false)) ?? '', /read-only/);
-  assert.match((await s.boards.comment('issue', 1, 'hi')).error ?? '', /read-only/);
   assert.equal(await s.boards.claim(1), undefined);
   assert.ok(s.get().issues[0].taken);
+});
+
+test("Studio's comment files show on the task's card", async () => {
+  const s = studio([task('a', 'ready'), task('b', 'ready')]);
+  mkdirSync(path.join(s.root, 'Comments'));
+  const id = '11111111-2222-4333-8444-555555555555';
+  const rel = path.join(path.basename(s.root), 'Tasks', 'a.md');
+  writeFileSync(path.join(s.root, 'Comments', `${id}.md`), `---\n${JSON.stringify({ id, target: { key: 'note:x', sourcePath: rel }, text: 'Too bright', quote: '', createdAt: '2026-10-07T10:00:00.000Z', author: 'Robin' })}\n---\n# Comment\n`);
+  await s.boards.refresh();
+  assert.deepEqual(s.get().issues.map((i) => i.comments), [1, 0]);
+  const detail = await s.boards.issueDetail(1);
+  assert.equal(detail.comments[0].body, 'Too bright');
+  assert.equal(detail.comments[0].author, 'Robin');
+});
+
+test('a comment is saved through the Studio app, with its token and origin', async () => {
+  const http = await import('node:http');
+  const s = studio([task('a', 'awaiting_robin')]);
+  const rel = path.join(path.basename(s.root), 'Tasks', 'a.md');
+  let posted: any;
+  const server = http.createServer((req, res) => {
+    const send = (data: object) => (res.setHeader('content-type', 'application/json'), res.end(JSON.stringify(data)));
+    if (req.url === '/api/snapshot') return send({ notes: [{ id: 'n1', path: rel }] });
+    if (req.url === '/api/targets/note%3An1') return send({ sourceHash: 'a'.repeat(64) });
+    if (req.url === '/api/comments' && req.method === 'GET') return send({ comments: [], token: 'tok' });
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      posted = { headers: req.headers, body: JSON.parse(body) };
+      res.statusCode = 201;
+      send({ id: posted.body.id, text: posted.body.text, author: 'Robin', createdAt: '2026-10-07T10:00:00.000Z', path: 'Studio/Comments/x.md' });
+    });
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${(server.address() as any).port}`;
+  const boards = new StudioBoards(s.root, s.data, () => {}, () => {}, { url });
+  await boards.refresh();
+  const out = await boards.comment('issue', 1, 'Looks good');
+  server.close();
+  assert.equal(out.error, undefined);
+  assert.equal(out.comment?.body, 'Looks good');
+  assert.equal(posted.headers['x-studio-token'], 'tok');
+  assert.equal(posted.headers.origin, url);
+  assert.deepEqual({ target: posted.body.target, sourceHash: posted.body.sourceHash, quote: posted.body.quote }, { target: 'note:n1', sourceHash: 'a'.repeat(64), quote: '' });
+});
+
+test("a comment while Studio is down says how to start it", async () => {
+  const s = studio([task('a', 'ready')]);
+  const boards = new StudioBoards(s.root, s.data, () => {}, () => {}, { url: 'http://127.0.0.1:9' });
+  await boards.refresh();
+  assert.match((await boards.comment('issue', 1, 'hi')).error ?? '', /isn't answering/);
 });

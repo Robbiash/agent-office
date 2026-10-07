@@ -11,6 +11,7 @@ import { commentBox } from './comment-box';
 import { labelButton, labelChip } from './labels';
 import { avatar, commentCard, errorBox, nodes, spinnerRow } from './pieces';
 import { issueContext, issuePrompt, type BoardActions } from './prompts';
+import { openLinkText } from './studio';
 
 // ---- The issue window -----------------------------------------------------------------------------
 
@@ -51,7 +52,7 @@ export function openIssue(first: GhIssue, net: Net, actions: BoardActions) {
     h(
       'footer',
       {},
-      h('a.grow', { href: it.url, target: '_blank', rel: 'noopener noreferrer' }, 'Open on GitHub ↗'),
+      h('a.grow', { href: it.url, target: '_blank', rel: 'noopener noreferrer' }, openLinkText(it.url)),
       h('button.btn', { type: 'button', title: 'Send a worker your own prompt about this issue', onclick: () => actions.ask(issueContext(it), `Ask about issue #${it.number}`) }, '✍️ Ask a worker…'),
       h('button.btn', { type: 'button', title: 'Workers take it on together in the meeting room: a debate, lead & team, map-reduce or red / blue', onclick: () => actions.meeting(issueMeeting(it.number, it.title)) }, '🤝 Meeting…'),
       closeIssue,

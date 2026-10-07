@@ -6,6 +6,7 @@ import { FLOOR_PALETTES, MAX_FLOORS, normalizeRepo, sameRepo } from '../shared/f
 import type { CloneProgress, ProjectsDirState, RepoChoice } from '../shared/protocol.js';
 import { CloneRun, dropLog, whyCloneFailed, type CloneEnd, type CloneRunOptions } from './clone.js';
 import { gh } from './github.js';
+import { studioServerOf, type StudioServer } from './studio.js';
 
 /** A floor as floors.json keeps it. */
 export interface FloorDef {
@@ -16,6 +17,8 @@ export interface FloorDef {
   dir: string;
   /** A Vaelmoor Studio folder whose tasks fill this floor's boards instead of GitHub's (set by hand in floors.json). */
   studio?: string;
+  /** The Studio app that comments are saved through, and the command that starts it (argv). */
+  studioServer?: StudioServer;
   palette: number;
   addedBy: string;
   addedAt: number;
@@ -409,6 +412,7 @@ export class Building {
           repo: normalizeRepo(s.repo),
           dir: s.dir,
           ...(typeof s.studio === 'string' && path.isAbsolute(s.studio) ? { studio: s.studio } : {}),
+          ...(studioServerOf(s.studioServer) ? { studioServer: studioServerOf(s.studioServer) } : {}),
           palette: Number.isInteger(s.palette) && (s.palette as number) >= 0 ? (s.palette as number) : 0,
           addedBy: typeof s.addedBy === 'string' ? s.addedBy : '?',
           addedAt: typeof s.addedAt === 'number' ? s.addedAt : Date.now(),

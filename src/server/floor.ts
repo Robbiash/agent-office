@@ -223,7 +223,7 @@ export class Floor {
       this.sendLandedHome();
       ctx.pullsChanged(this);
     };
-    this.github = def.studio ? new StudioBoards(def.studio, dataDir, onIssues, onPulls) : new GitHub(def.dir, onIssues, onPulls);
+    this.github = def.studio ? new StudioBoards(def.studio, dataDir, onIssues, onPulls, def.studioServer) : new GitHub(def.dir, onIssues, onPulls);
     // The 📋 task queue seats workers by itself: it watches the workers and links PRs from GitHub.
     this.queue = new TaskQueue(dataDir, this.workers, !!this.project.branch, {
       update: (state) => {
