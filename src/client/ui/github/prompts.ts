@@ -3,6 +3,7 @@ import { store } from '../../state';
 import { repoUrlOf } from '../markdown';
 import type { MeetingPreset } from '../meeting';
 import { officePrompt } from '../prompts';
+import { studioAskContext, studioFile, studioReviewPrompt, studioWorkPrompt } from './studio';
 
 // ---- Prompts for workers ------------------------------------------------------------------------
 
@@ -23,7 +24,10 @@ export interface BoardActions {
 
 /** The task a worker gets for an issue, from the board, a carried card or the queue (the 'issue.work' prompt). */
 export function issuePrompt(it: Pick<GhIssue, 'number' | 'title'> & { url?: string }): string {
-  return officePrompt('issue.work', issueVars(it));
+  const vars = issueVars(it);
+  const studio = studioFile(vars.url);
+  if (studio) return studioWorkPrompt(it.number, it.title, studio);
+  return officePrompt('issue.work', vars);
 }
 
 /** What an issue's prompts fill in. A carried card has no URL, but the board usually knows it. */
@@ -42,6 +46,8 @@ export function pullVars(it: GhPull) {
 }
 
 export function reviewPrompt(it: GhPull) {
+  const studio = studioFile(it.url);
+  if (studio) return studioReviewPrompt(it.number, it.title, studio);
   return officePrompt('pull.review', pullVars(it));
 }
 
@@ -54,17 +60,25 @@ function mergeVars(it: GhPull, method: GhMergeMethod, deleteBranch: boolean) {
 }
 
 export function fixAndMergePrompt(it: GhPull, method: GhMergeMethod, deleteBranch: boolean) {
+  const studio = studioFile(it.url);
+  if (studio) return studioWorkPrompt(it.number, it.title, studio);
   return officePrompt('pull.fixMerge', mergeVars(it, method, deleteBranch));
 }
 
 export function fixConflictsPrompt(it: GhPull, method: GhMergeMethod, deleteBranch: boolean) {
+  const studio = studioFile(it.url);
+  if (studio) return studioWorkPrompt(it.number, it.title, studio);
   return officePrompt('pull.fixConflicts', mergeVars(it, method, deleteBranch));
 }
 
 export function pullContext(it: GhPull) {
+  const studio = studioFile(it.url);
+  if (studio) return studioAskContext(it.number, it.title, studio);
   return officePrompt('pull.ask', pullVars(it));
 }
 
 export function issueContext(it: GhIssue) {
+  const studio = studioFile(it.url);
+  if (studio) return studioAskContext(it.number, it.title, studio);
   return officePrompt('issue.ask', issueVars(it));
 }

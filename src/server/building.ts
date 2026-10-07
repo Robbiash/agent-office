@@ -14,6 +14,8 @@ export interface FloorDef {
   /** owner/name on GitHub. */
   repo?: string;
   dir: string;
+  /** A Vaelmoor Studio folder whose tasks fill this floor's boards instead of GitHub's (set by hand in floors.json). */
+  studio?: string;
   palette: number;
   addedBy: string;
   addedAt: number;
@@ -406,6 +408,7 @@ export class Building {
           name: typeof s.name === 'string' && s.name ? s.name.slice(0, 100) : path.basename(s.dir),
           repo: normalizeRepo(s.repo),
           dir: s.dir,
+          ...(typeof s.studio === 'string' && path.isAbsolute(s.studio) ? { studio: s.studio } : {}),
           palette: Number.isInteger(s.palette) && (s.palette as number) >= 0 ? (s.palette as number) : 0,
           addedBy: typeof s.addedBy === 'string' ? s.addedBy : '?',
           addedAt: typeof s.addedAt === 'number' ? s.addedAt : Date.now(),

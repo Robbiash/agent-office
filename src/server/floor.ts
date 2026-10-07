@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import type { ChangesState, FloorInfo, PeerInfo, ProjectInfo, ServerMsg, WorkerInfo } from '../shared/protocol.js';
+import type { ChangesState, FloorInfo, GhIssue, GhPull, GhState, PeerInfo, ProjectInfo, ServerMsg, WorkerInfo } from '../shared/protocol.js';
 import { isBusy } from '../shared/status.js';
 import { DESK_BY_ID } from '../shared/layout.js';
 import type { FloorDef } from './building.js';
@@ -9,6 +9,7 @@ import { excludeFromGit } from './config.js';
 import { agentProviders, configuredProvider } from './agents.js';
 import { WorkerManager, workedMs, type HookEnv, type RunAs } from './workers.js';
 import { GitHub, MergeWatch } from './github.js';
+import { type Boards, StudioBoards } from './studio.js';
 import type { GhAs } from './signins.js';
 import { TaskQueue } from './queue.js';
 import { Changes } from './changes.js';
@@ -113,7 +114,8 @@ export class Floor {
   readonly dir: string;
   readonly project: ProjectInfo;
   readonly workers: WorkerManager;
-  readonly github: GitHub;
+  /** The issue and PR boards: GitHub's, or a Vaelmoor Studio folder's when the floor names one (FloorDef.studio). */
+  readonly github: Boards;
   readonly queue: TaskQueue;
   readonly changes: Changes;
   readonly decor: Decor;
@@ -207,23 +209,21 @@ export class Floor {
     );
     this.workers.wing = () => this.plan.wing;
 
-    this.github = new GitHub(
-      def.dir,
-      (state) => ctx.emit(this, { t: 'gh.issues', state }),
-      (state) => {
-        ctx.emit(this, { t: 'gh.pulls', state });
-        this.queue?.onPulls(state.items);
-        if (state.loading || state.error) return;
-        // A worker may have opened one from a branch it made itself, mid-turn or from a shell.
-        void this.workers.syncBranches();
-        for (const p of this.merges.look(state.items)) {
-          ctx.toast(this, `🎉 PR #${p.number} merged: ${p.title}`);
-          this.merged(p.number);
-        }
-        this.sendLandedHome();
-        ctx.pullsChanged(this);
-      },
-    );
+    const onIssues = (state: GhState<GhIssue>) => ctx.emit(this, { t: 'gh.issues', state });
+    const onPulls = (state: GhState<GhPull>) => {
+      ctx.emit(this, { t: 'gh.pulls', state });
+      this.queue?.onPulls(state.items);
+      if (state.loading || state.error) return;
+      // A worker may have opened one from a branch it made itself, mid-turn or from a shell.
+      void this.workers.syncBranches();
+      for (const p of this.merges.look(state.items)) {
+        ctx.toast(this, `🎉 PR #${p.number} merged: ${p.title}`);
+        this.merged(p.number);
+      }
+      this.sendLandedHome();
+      ctx.pullsChanged(this);
+    };
+    this.github = def.studio ? new StudioBoards(def.studio, dataDir, onIssues, onPulls) : new GitHub(def.dir, onIssues, onPulls);
     // The 📋 task queue seats workers by itself: it watches the workers and links PRs from GitHub.
     this.queue = new TaskQueue(dataDir, this.workers, !!this.project.branch, {
       update: (state) => {

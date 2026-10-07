@@ -8,6 +8,7 @@ import { confirmDialog } from './prompt';
 import { providerPicker } from './provider';
 import { officePrompt } from './prompts';
 import { issueVars } from './github/prompts';
+import { studioAskContext, studioFile } from './github/studio';
 import { dictateField } from './dictate';
 
 /** What a meeting called from an issue, a PR or a task starts out with. */
@@ -27,7 +28,9 @@ export interface MeetingActions {
 
 /** A meeting about a GitHub issue: the form filled in with it. */
 export function issueMeeting(n: number, title: string): MeetingPreset {
-  return { issue: n, title: `#${n} ${title}`, prompt: officePrompt('issue.meeting', issueVars({ number: n, title })) };
+  const vars = issueVars({ number: n, title });
+  const studio = studioFile(vars.url);
+  return { issue: n, title: `#${n} ${title}`, prompt: studio ? studioAskContext(n, title, studio) : officePrompt('issue.meeting', vars) };
 }
 
 const PART_LABEL: Record<MeetingTurn['state'], string> = { waiting: '⏳ up next', sent: '📨 handed over', working: '💬 on it', done: '✅ written' };
